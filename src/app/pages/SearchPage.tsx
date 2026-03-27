@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
 import { ProductCard } from '../components/ProductCard';
 import { products } from '../data/mockData';
-import svgPaths from '../../imports/svg-worchwxac6';
 import svgPathsMobile from '../../imports/svg-eymrglue4j';
 import svgPathsBreadcrumb from '../../imports/svg-ira0nmpy2q';
 import svgPathsSearch from '../../imports/svg-ykvc2l1ede';
@@ -10,10 +9,21 @@ import svgPathsFilters from '../../imports/svg-ulnwdl2pel';
 
 type SearchMode = 'vehicle' | 'code';
 
+const AUTO_PARTS_CATEGORY = 'Repuestos automotrices';
+
+function getCategoryLabel(category?: string) {
+  if (!category) {
+    return 'Resultados';
+  }
+
+  return category === AUTO_PARTS_CATEGORY ? 'Autopartes' : category;
+}
+
 export function SearchPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const query = searchParams.get('q') || '';
+  const normalizedQuery = query.trim().toLowerCase();
   
   const [searchMode, setSearchMode] = useState<SearchMode>('vehicle');
   const [showBanner, setShowBanner] = useState(true);
@@ -29,7 +39,6 @@ export function SearchPage() {
   
   // Filter states
   const [selectedFilterBrands, setSelectedFilterBrands] = useState<string[]>([]);
-  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
 
   // Mock data for vehicle dropdowns
@@ -37,14 +46,30 @@ export function SearchPage() {
   const models = ['Corolla', 'Camry', 'RAV4', 'Hilux'];
   const years = ['2024', '2023', '2022', '2021', '2020', '2019', '2018'];
 
-  // Filter products based on all criteria
-  const filteredProducts = products.filter((product) => {
-    // Search query filter
-    if (query && !product.name.toLowerCase().includes(query.toLowerCase()) &&
-        !product.code.toLowerCase().includes(query.toLowerCase()) &&
-        !product.brand.toLowerCase().includes(query.toLowerCase())) {
-      return false;
+  const matchedProducts = products.filter((product) => {
+    if (!normalizedQuery) {
+      return true;
     }
+
+    return (
+      product.name.toLowerCase().includes(normalizedQuery) ||
+      product.code.toLowerCase().includes(normalizedQuery) ||
+      product.brand.toLowerCase().includes(normalizedQuery)
+    );
+  });
+
+  const categoryCounts = matchedProducts.reduce<Record<string, number>>((counts, product) => {
+    counts[product.category] = (counts[product.category] ?? 0) + 1;
+    return counts;
+  }, {});
+
+  const dominantCategory = Object.entries(categoryCounts).sort(([, left], [, right]) => right - left)[0]?.[0];
+  const scopedProducts = dominantCategory
+    ? matchedProducts.filter((product) => product.category === dominantCategory)
+    : matchedProducts;
+
+  // Filter products based on all criteria
+  const filteredProducts = scopedProducts.filter((product) => {
 
     // Brand filter from sidebar
     if (selectedFilterBrands.length > 0 && !selectedFilterBrands.includes(product.brand)) {
@@ -59,20 +84,12 @@ export function SearchPage() {
     return true;
   });
 
-  const productBrands = Array.from(new Set(products.map(p => p.brand)));
-  const subcategories = ['Sistema de frenos', 'Suspensión', 'Motor', 'Transmisión', 'Dirección'];
-
-  const toggleFilterBrand = (brand: string) => {
-    setSelectedFilterBrands(prev =>
-      prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]
-    );
-  };
-
-  const toggleSubcategory = (subcategory: string) => {
-    setSelectedSubcategories(prev =>
-      prev.includes(subcategory) ? prev.filter(s => s !== subcategory) : [...prev, subcategory]
-    );
-  };
+  const currentCategory = dominantCategory ?? AUTO_PARTS_CATEGORY;
+  const currentCategoryLabel = getCategoryLabel(currentCategory);
+  const showVehicleSearchFlow = !normalizedQuery || currentCategory === AUTO_PARTS_CATEGORY;
+  const showSearchBreadcrumb = Boolean(normalizedQuery);
+  const resultsTitle = normalizedQuery ? 'Resultados' : currentCategoryLabel;
+  const resultsSubtitle = normalizedQuery ? currentCategoryLabel : null;
 
   const handleVehicleSearch = () => {
     // Handle vehicle search logic
@@ -88,81 +105,92 @@ export function SearchPage() {
     <div className="bg-input-background min-h-screen">
       {/* Mobile Layout */}
       <div className="bg-[#ffffff]">
-        {/* Aclaracion Section */}
-        <div className="bg-input-background px-3 py-6">
-          {/* Yellow Warning Banner */}
-          {showBanner && (
-            <div className="bg-[#fdf7e6] border border-[#efac00] rounded-[4px] p-2 mb-[30px]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-[6px] flex-1">
-                  {/* Info Icon */}
-                  <div className="w-5 h-5 flex-shrink-0">
-                    <svg className="block size-full" fill="none" viewBox="0 0 20 20">
-                      <mask height="20" id="mask0_info" maskUnits="userSpaceOnUse" style={{ maskType: "alpha" }} width="20" x="0" y="0">
-                        <rect fill="#D9D9D9" height="20" width="20" />
-                      </mask>
-                      <g mask="url(#mask0_info)">
-                        <path d={svgPathsMobile.p16f11100} fill="#EFAC00" />
-                      </g>
-                    </svg>
+        {showVehicleSearchFlow ? (
+          <div className="bg-input-background px-3 py-6">
+            {/* Yellow Warning Banner */}
+            {showBanner && (
+              <div className="bg-[#fdf7e6] border border-[#efac00] rounded-[4px] p-2 mb-[30px]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-[6px] flex-1">
+                    {/* Info Icon */}
+                    <div className="w-5 h-5 flex-shrink-0">
+                      <svg className="block size-full" fill="none" viewBox="0 0 20 20">
+                        <mask height="20" id="mask0_info" maskUnits="userSpaceOnUse" style={{ maskType: "alpha" }} width="20" x="0" y="0">
+                          <rect fill="#D9D9D9" height="20" width="20" />
+                        </mask>
+                        <g mask="url(#mask0_info)">
+                          <path d={svgPathsMobile.p16f11100} fill="#EFAC00" />
+                        </g>
+                      </svg>
+                    </div>
+                    <p className="text-[#835f00] text-sm leading-[1.5]">
+                      Seleccione un vehículo para encontrar las piezas compatibles.
+                    </p>
                   </div>
-                  <p className="text-[#835f00] text-sm leading-[1.5]">
-                    Seleccione un vehículo para encontrar las piezas compatibles.
-                  </p>
+                  <button onClick={() => setShowBanner(false)} className="w-4 h-4 flex-shrink-0 hover:opacity-70 ml-2">
+                    <svg className="block size-full" fill="none" viewBox="0 0 13.3075 13.3075">
+                      <path d={svgPathsMobile.p20bff00} fill="#EFAC00" />
+                    </svg>
+                  </button>
                 </div>
-                <button onClick={() => setShowBanner(false)} className="w-4 h-4 flex-shrink-0 hover:opacity-70 ml-2">
-                  <svg className="block size-full" fill="none" viewBox="0 0 13.3075 13.3075">
-                    <path d={svgPathsMobile.p20bff00} fill="#EFAC00" />
-                  </svg>
-                </button>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Vehicle Question and Add Vehicle Button */}
-          <div className="flex flex-col gap-6 mb-[30px]">
-            <div className="flex items-center gap-1">
-              {/* Car Icon */}
-              <div className="w-6 h-6 flex-shrink-0">
-                <svg className="block size-full" fill="none" viewBox="0 0 17 15">
-                  <path d={svgPathsMobile.p69d4980} fill="var(--color-primary)" />
-                </svg>
+            {/* Vehicle Question and Add Vehicle Button */}
+            <div className="flex flex-col gap-6 mb-[30px]">
+              <div className="flex items-center gap-1">
+                {/* Car Icon */}
+                <div className="w-6 h-6 flex-shrink-0">
+                  <svg className="block size-full" fill="none" viewBox="0 0 17 15">
+                    <path d={svgPathsMobile.p69d4980} fill="var(--color-primary)" />
+                  </svg>
+                </div>
+                <h2 className="text-primary font-bold leading-[1.3] text-[20px]">
+                  ¿Para qué vehículo es esta pieza?
+                </h2>
               </div>
-              <h2 className="text-primary font-bold leading-[1.3] text-[20px]">
-                ¿Para qué vehículo es esta pieza?
-              </h2>
+              <button
+                type="button"
+                onClick={() => setShowSearchCard((current) => !current)}
+                aria-expanded={showSearchCard}
+                className="h-[52px] border border-primary rounded-xl px-4 flex items-center justify-center gap-1 hover:bg-muted transition-colors"
+              >
+                <span className="text-primary text-base leading-[1.5]">Agregar vehículo</span>
+                <div className="w-4 h-4 flex-shrink-0">
+                  <svg className="block size-full" fill="none" viewBox="0 0 20 21.7345">
+                    <path d={svgPathsMobile.pbd22480} fill="var(--color-primary)" />
+                  </svg>
+                </div>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowSearchCard((current) => !current)}
-              aria-expanded={showSearchCard}
-              className="h-[52px] border border-primary rounded-xl px-4 flex items-center justify-center gap-1 hover:bg-muted transition-colors"
-            >
-              <span className="text-primary text-base leading-[1.5]">Agregar vehículo</span>
-              <div className="w-4 h-4 flex-shrink-0">
-                <svg className="block size-full" fill="none" viewBox="0 0 20 21.7345">
-                  <path d={svgPathsMobile.pbd22480} fill="var(--color-primary)" />
-                </svg>
-              </div>
-            </button>
           </div>
-        </div>
+        ) : (
+          <div className="bg-input-background px-3 py-6">
+            <div className="mx-auto max-w-[362px]">
+              <p className="text-sm text-muted-foreground leading-[1.5]">
+                Resultados relacionados con tu búsqueda.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Breadcrumb */}
-        <div className="border-t border-b border-border bg-background px-6 py-3">
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground leading-[1.5]">Inicio</span>
-            <div className="w-4 h-4 flex-shrink-0">
-              <svg className="block size-full" fill="none" viewBox="0 0 6.7075 11.3075">
-                <path d={svgPathsBreadcrumb.p200a9180} fill="var(--color-muted-foreground)" />
-              </svg>
+        {showSearchBreadcrumb ? (
+          <div className="border-t border-b border-border bg-background px-6 py-3">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground leading-[1.5]">Inicio</span>
+              <div className="w-4 h-4 flex-shrink-0">
+                <svg className="block size-full" fill="none" viewBox="0 0 6.7075 11.3075">
+                  <path d={svgPathsBreadcrumb.p200a9180} fill="var(--color-muted-foreground)" />
+                </svg>
+              </div>
+              <span className="text-sm text-primary leading-[1.5]">Buscar</span>
             </div>
-            <span className="text-sm text-primary leading-[1.5]">Autopartes</span>
           </div>
-        </div>
+        ) : null}
 
         {/* Search Card */}
-        {showSearchCard ? (
+        {showVehicleSearchFlow && showSearchCard ? (
         <div className="bg-white border-[0.5px] border-[#bfbed0] rounded-xl p-6 mx-3 my-6">
           {/* Tabs */}
           <div className="flex items-center justify-between mb-6">
@@ -369,7 +397,16 @@ export function SearchPage() {
         <div className="bg-white px-3 py-8">
           {/* Title, Results Count, and Filter Buttons */}
           <div className="mb-8 flex flex-col gap-6">
-            <h1 className="text-[32px] font-bold text-muted-foreground leading-[1.25] tracking-[-0.0016px]">Autopartes</h1>
+            <div className="flex flex-col gap-2">
+              <h1 className="text-[32px] font-bold text-muted-foreground leading-[1.25] tracking-[-0.0016px]">
+                {resultsTitle}
+              </h1>
+              {resultsSubtitle ? (
+                <p className="text-base text-primary leading-[1.5]">
+                  {resultsSubtitle}
+                </p>
+              ) : null}
+            </div>
             <p className="text-muted-foreground text-lg leading-[1.5]">{filteredProducts.length} resultados</p>
             
             {/* Divider Line */}
