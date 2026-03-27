@@ -110,13 +110,13 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             )}
           </div>
 
-          {/* Ofertas Section */}
+          {/* Categorias Section */}
           <Link
-            to="/ofertas"
+            to="/categorias"
             onClick={onClose}
             className="h-[52px] flex items-center text-base leading-[1.5] text-primary transition-colors hover:text-primary/80"
           >
-            🎁 Ofertas
+            🎁 Categorías
           </Link>
 
           {/* Divider */}

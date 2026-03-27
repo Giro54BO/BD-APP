@@ -7,7 +7,7 @@ import imgRectangle109 from "@/assets/387bde576e48661baaa1b7edcf923d557d2bf5b8.p
 import imgRectangle110 from "@/assets/2535b3843b5a5f4858be93048f290ee052d80a00.png";
 import imgRectangle111 from "@/assets/eed34c2474772d44f0e8eb1a3db635b052eaa932.png";
 
-export function OfertasPage() {
+export function CategoriasPage() {
   const navigate = useNavigate();
 
   const categoryImagesMap: Record<string, string> = {

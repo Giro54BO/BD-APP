@@ -12,6 +12,9 @@ import imgAutomotriz1 from "@/assets/8fbb02c4d769107d2cb7a1b2bdb714216f6added.pn
 import imgRectangle109 from "@/assets/387bde576e48661baaa1b7edcf923d557d2bf5b8.png";
 import imgRectangle110 from "@/assets/2535b3843b5a5f4858be93048f290ee052d80a00.png";
 import imgRectangle111 from "@/assets/eed34c2474772d44f0e8eb1a3db635b052eaa932.png";
+import imgRectangle107 from "@/assets/91853ad2ca31c93af0704c87520c8f877a0d93a2.png";
+import imgAutomotriz2 from "@/assets/1b00d675de29116c786eaf6d193755b40111a289.png";
+import imgBotasCuero1 from "@/assets/6b79d5be5b96be05e70587d95b3c1d7052e9eebc.png";
 import imgBrand1 from "@/assets/1fc4a3179194286e3de909ab6510e5141e3ccce0.png";
 import imgBrand2 from "@/assets/127927f341520b90d6948349f411b14b63ecc066.png";
 import imgBrand3 from "@/assets/855f6644fd4c935b120bfa427173093a7ea7c099.png";
@@ -195,33 +198,50 @@ export function HomePage() {
       </div>
 
       {/* Hero Section */}
-      <section className="bg-primary text-white py-16">
-        <div className="max-w-[1440px] mx-auto px-8">
-          <div className="grid grid-cols-1 gap-12 items-center">
-            <div>
-              <h1 className="text-4xl font-bold mb-6">
-                Todo lo que necesitas, en un solo lugar
-              </h1>
-              <p className="text-lg text-white/90 mb-8">
-                Explora nuestro catálogo con miles de repuestos y accesorios originales.
-                Más de 30 años respaldando la calidad de nuestros productos.
-              </p>
-              <Link
-                to="/ofertas"
-                className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-white px-8 py-4 rounded-lg font-medium transition-colors"
-              >
-                Ver catálogo
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-            </div>
-            <div className="relative h-[400px] rounded-lg overflow-hidden">
-              <ImageWithFallback
-                src="https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800"
-                alt="Herramientas y repuestos"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
+      <section className="mx-auto w-full max-w-[428px]">
+        <div className="relative h-[253px] w-full overflow-hidden">
+          <ImageWithFallback
+            src={imgRectangle107}
+            alt="Fondo del banner"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <ImageWithFallback
+            src={imgRectangle110}
+            alt="Herramientas"
+            className="absolute left-[5.5%] top-0 h-[245px] w-[170px] object-contain"
+          />
+          <ImageWithFallback
+            src={imgAutomotriz2}
+            alt="Amortiguador"
+            className="absolute left-[4.1%] top-[51px] h-[194px] w-[326px] object-contain"
+          />
+          <ImageWithFallback
+            src={imgRectangle108}
+            alt="Ropa"
+            className="absolute left-[32.2%] top-[45px] h-[193px] w-[192px] object-contain"
+          />
+          <ImageWithFallback
+            src={imgBotasCuero1}
+            alt="Botas"
+            className="absolute left-[35.2%] top-[75px] h-[175px] w-[262px] object-contain"
+          />
+        </div>
+
+        <div className="flex flex-col gap-3 bg-primary px-6 py-6 text-white">
+          <h1 className="text-[24px] font-bold leading-[1.3]">
+            Todo lo que necesitas, en un solo lugar
+          </h1>
+          <p className="text-[12px] font-normal leading-[1.4] tracking-[0.02px]">
+            Equipa tu hogar, renueva tu estilo y encuentra los repuestos que
+            necesitas sin salir de casa.
+          </p>
+          <Link
+            to="/search"
+            className="mt-1 inline-flex h-12 w-full items-center justify-center gap-1 rounded-[12px] bg-white px-4 text-[16px] font-normal leading-[1.5] text-primary transition-colors hover:bg-white/90"
+          >
+            Explorar catálogo
+            <ArrowRight className="h-5 w-5" />
+          </Link>
         </div>
       </section>
 

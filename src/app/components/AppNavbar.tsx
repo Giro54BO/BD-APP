@@ -11,7 +11,11 @@ export function AppNavbar() {
 
   // Determine active tab based on current route
   const isHome = location.pathname === '/';
-  const isCategories = location.pathname.includes('/category') || location.pathname.includes('/search') || location.pathname.includes('/ofertas');
+  const isCategories =
+    location.pathname.includes('/category') ||
+    location.pathname.includes('/search') ||
+    location.pathname.includes('/categorias') ||
+    location.pathname.includes('/ofertas');
   const isCart = location.pathname === '/cart';
   const isProfile = location.pathname.includes('/profile') || location.pathname.includes('/auth');
 
@@ -47,7 +51,7 @@ export function AppNavbar() {
 
             {/* Categories */}
             <button
-              onClick={() => navigate('/ofertas')}
+              onClick={() => navigate('/categorias')}
               className={`content-stretch flex items-center justify-center px-[12px] py-[4px] relative rounded-[120px] shrink-0 transition-colors ${
                 isCategories ? 'bg-primary' : 'bg-transparent'
               }`}

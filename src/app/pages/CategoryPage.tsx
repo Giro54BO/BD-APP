@@ -131,7 +131,7 @@ export function CategoryPage() {
         <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-8 py-4 sm:py-6">
           <button
             type="button"
-            onClick={() => navigate('/ofertas')}
+            onClick={() => navigate('/categorias')}
             aria-label="Volver"
             className="inline-flex items-center justify-center rounded-lg p-2 transition-colors hover:bg-gray-100"
           >

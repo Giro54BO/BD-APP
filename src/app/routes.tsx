@@ -1,4 +1,4 @@
-import { createHashRouter } from "react-router";
+import { createHashRouter, Navigate } from "react-router";
 import { RootLayout } from "./layouts/RootLayout";
 import { ProfileLayout } from "./layouts/ProfileLayout";
 import { HomePage } from "./pages/HomePage";
@@ -23,8 +23,10 @@ import { GaragePage } from "./pages/GaragePage";
 import { LogoutPage } from "./pages/LogoutPage";
 import { HelpCenterPage } from "./pages/HelpCenterPage";
 import { CategoryPage } from "./pages/CategoryPage";
-import { OfertasPage } from "./pages/OfertasPage";
+import { CategoriasPage } from "./pages/CategoriasPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+
+const LegacyOfertasRedirect = () => <Navigate to="/categorias" replace />;
 
 export const router = createHashRouter([
   {
@@ -122,8 +124,12 @@ export const router = createHashRouter([
         Component: HelpCenterPage,
       },
       {
+        path: "categorias",
+        Component: CategoriasPage,
+      },
+      {
         path: "ofertas",
-        Component: OfertasPage,
+        Component: LegacyOfertasRedirect,
       },
       {
         path: "category/:categoryName",

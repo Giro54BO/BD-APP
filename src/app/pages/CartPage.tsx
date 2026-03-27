@@ -18,7 +18,7 @@ export function CartPage() {
             Agrega productos a tu carrito para continuar con tu compra
           </p>
           <Link
-            to="/ofertas"
+            to="/categorias"
             className="inline-block bg-primary text-white px-8 py-4 rounded-lg hover:bg-primary/90 transition-colors"
           >
             Ver catálogo
@@ -139,7 +139,7 @@ export function CartPage() {
             </Link>
 
             <Link
-              to="/ofertas"
+              to="/categorias"
               className="block w-full text-center text-primary py-3 mt-3 hover:underline"
             >
               Continuar comprando
