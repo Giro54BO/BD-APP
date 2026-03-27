@@ -25,6 +25,7 @@ import { HelpCenterPage } from "./pages/HelpCenterPage";
 import { CategoryPage } from "./pages/CategoryPage";
 import { CategoriasPage } from "./pages/CategoriasPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { NoResultsPage } from "./pages/NoResultsPage";
 
 const LegacyOfertasRedirect = () => <Navigate to="/categorias" replace />;
 
@@ -134,6 +135,10 @@ export const router = createHashRouter([
       {
         path: "category/:categoryName",
         Component: CategoryPage,
+      },
+      {
+        path: "no-results",
+        Component: NoResultsPage,
       },
       {
         path: "*",

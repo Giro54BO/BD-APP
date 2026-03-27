@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { ArrowLeft, X } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router';
 import { ProductCard } from '../components/ProductCard';
 import { products } from '../data/mockData';
+import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import svgPathsMobile from '../../imports/svg-eymrglue4j';
 import svgPathsBreadcrumb from '../../imports/svg-ira0nmpy2q';
 import svgPathsSearch from '../../imports/svg-ykvc2l1ede';
@@ -20,11 +22,19 @@ function getCategoryLabel(category?: string) {
 }
 
 export function SearchPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const query = searchParams.get('q') || '';
   const normalizedQuery = query.trim().toLowerCase();
   
+  const [localSearchQuery, setLocalSearchQuery] = useState(query);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchContainerRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    setLocalSearchQuery(query);
+  }, [query]);
+
   const [searchMode, setSearchMode] = useState<SearchMode>('vehicle');
   const [showBanner, setShowBanner] = useState(true);
   const [showSearchCard, setShowSearchCard] = useState(false);
@@ -41,48 +51,69 @@ export function SearchPage() {
   const [selectedFilterBrands, setSelectedFilterBrands] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
 
+  const matchedProducts = useMemo(() => {
+    return products.filter((product) => {
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return (
+        product.name.toLowerCase().includes(normalizedQuery) ||
+        product.code.toLowerCase().includes(normalizedQuery) ||
+        product.brand.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [normalizedQuery]);
+
+  const { dominantCategory, scopedProducts } = useMemo(() => {
+    const counts = matchedProducts.reduce<Record<string, number>>((acc, product) => {
+      acc[product.category] = (acc[product.category] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    const dominant = Object.entries(counts).sort(([, left], [, right]) => right - left)[0]?.[0];
+    
+    const scoped = dominant
+      ? matchedProducts.filter((product) => product.category === dominant)
+      : matchedProducts;
+
+    return { dominantCategory: dominant, scopedProducts: scoped };
+  }, [matchedProducts]);
+
   // Mock data for vehicle dropdowns
   const brands = ['Toyota', 'Honda', 'Ford', 'Chevrolet', 'Nissan'];
   const models = ['Corolla', 'Camry', 'RAV4', 'Hilux'];
   const years = ['2024', '2023', '2022', '2021', '2020', '2019', '2018'];
 
-  const matchedProducts = products.filter((product) => {
-    if (!normalizedQuery) {
-      return true;
-    }
-
-    return (
-      product.name.toLowerCase().includes(normalizedQuery) ||
-      product.code.toLowerCase().includes(normalizedQuery) ||
-      product.brand.toLowerCase().includes(normalizedQuery)
-    );
-  });
-
-  const categoryCounts = matchedProducts.reduce<Record<string, number>>((counts, product) => {
-    counts[product.category] = (counts[product.category] ?? 0) + 1;
-    return counts;
-  }, {});
-
-  const dominantCategory = Object.entries(categoryCounts).sort(([, left], [, right]) => right - left)[0]?.[0];
-  const scopedProducts = dominantCategory
-    ? matchedProducts.filter((product) => product.category === dominantCategory)
-    : matchedProducts;
-
   // Filter products based on all criteria
-  const filteredProducts = scopedProducts.filter((product) => {
+  const filteredProducts = useMemo(() => {
+    return scopedProducts.filter((product) => {
+      // Brand filter from sidebar
+      if (selectedFilterBrands.length > 0 && !selectedFilterBrands.includes(product.brand)) {
+        return false;
+      }
 
-    // Brand filter from sidebar
-    if (selectedFilterBrands.length > 0 && !selectedFilterBrands.includes(product.brand)) {
-      return false;
-    }
+      // Price filter
+      if (product.price < priceRange[0] || product.price > priceRange[1]) {
+        return false;
+      }
 
-    // Price filter
-    if (product.price < priceRange[0] || product.price > priceRange[1]) {
-      return false;
-    }
+      return true;
+    });
+  }, [scopedProducts, selectedFilterBrands, priceRange]);
 
-    return true;
-  });
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const currentCategory = dominantCategory ?? AUTO_PARTS_CATEGORY;
   const currentCategoryLabel = getCategoryLabel(currentCategory);
@@ -101,8 +132,102 @@ export function SearchPage() {
     console.log('Searching for code:', searchCode);
   };
 
+  const previewProducts = localSearchQuery.trim()
+    ? products
+        .filter((product) => {
+          const normalizedQuery = localSearchQuery.trim().toLowerCase();
+          return (
+            product.name.toLowerCase().includes(normalizedQuery) ||
+            product.brand.toLowerCase().includes(normalizedQuery) ||
+            product.code.toLowerCase().includes(normalizedQuery)
+          );
+        })
+        .slice(0, 2)
+    : [];
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams(searchParams);
+    if (localSearchQuery.trim()) {
+      params.set('q', localSearchQuery.trim());
+    } else {
+      params.delete('q');
+    }
+    setSearchParams(params);
+  };
+
+  const handlePreviewSelect = (value: string) => {
+    setLocalSearchQuery(value);
+    const params = new URLSearchParams(searchParams);
+    params.set('q', value);
+    setSearchParams(params);
+  };
+
   return (
-    <div className="bg-input-background min-h-screen">
+    <div className="bg-input-background min-h-screen pt-[74px]">
+      {/* Header */}
+      <div className="fixed top-0 left-0 right-0 z-50 mx-auto h-[74px] max-w-[428px] border-b border-[#bfbed0] bg-white">
+        <div className="flex h-full w-full items-center gap-3 px-4">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="Volver"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-primary transition-colors hover:bg-gray-100"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </button>
+
+          <form ref={searchContainerRef} onSubmit={handleSearchSubmit} className="relative flex-1">
+            <div className="relative flex h-11 items-center gap-2 rounded-xl border border-primary bg-input-background px-3">
+              <input
+                type="text"
+                value={localSearchQuery}
+                onChange={(e) => {
+                  setLocalSearchQuery(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                placeholder="Buscar..."
+                className="h-full flex-1 bg-transparent text-sm text-primary outline-none placeholder:text-muted-foreground"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setLocalSearchQuery('');
+                  navigate('/no-results');
+                }}
+                className="flex h-6 w-6 items-center justify-center text-primary hover:opacity-70 transition-opacity"
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {showSuggestions && previewProducts.length > 0 ? (
+              <div className="absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-xl border border-[#6b6b7b] bg-white shadow-sm">
+                {previewProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => handlePreviewSelect(product.name)}
+                    className="flex h-12 w-full items-center gap-[10px] px-3 text-left transition-colors hover:bg-[#f5f5f7]"
+                  >
+                    <ImageWithFallback
+                      src={product.image}
+                      alt={product.name}
+                      className="h-[31px] w-[31px] rounded-[4px]"
+                    />
+                    <span className="truncate text-sm leading-[1.5] tracking-[0.0014px] text-[#6b6b7b]">
+                      {product.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </form>
+        </div>
+      </div>
+
       {/* Mobile Layout */}
       <div className="bg-[#ffffff]">
         {showVehicleSearchFlow ? (
@@ -162,29 +287,6 @@ export function SearchPage() {
                   </svg>
                 </div>
               </button>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-input-background px-3 py-6">
-            <div className="mx-auto max-w-[362px]">
-              <p className="text-sm text-muted-foreground leading-[1.5]">
-                Resultados relacionados con tu búsqueda.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Breadcrumb */}
-        {showSearchBreadcrumb ? (
-          <div className="border-t border-b border-border bg-background px-6 py-3">
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground leading-[1.5]">Inicio</span>
-              <div className="w-4 h-4 flex-shrink-0">
-                <svg className="block size-full" fill="none" viewBox="0 0 6.7075 11.3075">
-                  <path d={svgPathsBreadcrumb.p200a9180} fill="var(--color-muted-foreground)" />
-                </svg>
-              </div>
-              <span className="text-sm text-primary leading-[1.5]">Buscar</span>
             </div>
           </div>
         ) : null}
@@ -397,16 +499,6 @@ export function SearchPage() {
         <div className="bg-white px-3 py-8">
           {/* Title, Results Count, and Filter Buttons */}
           <div className="mb-8 flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <h1 className="text-[32px] font-bold text-muted-foreground leading-[1.25] tracking-[-0.0016px]">
-                {resultsTitle}
-              </h1>
-              {resultsSubtitle ? (
-                <p className="text-base text-primary leading-[1.5]">
-                  {resultsSubtitle}
-                </p>
-              ) : null}
-            </div>
             <p className="text-muted-foreground text-lg leading-[1.5]">{filteredProducts.length} resultados</p>
             
             {/* Divider Line */}
