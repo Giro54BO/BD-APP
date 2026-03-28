@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
-import { useSearchParams, useNavigate } from 'react-router';
+import { useSearchParams, useNavigate, Link } from 'react-router';
 import { ProductCard } from '../components/ProductCard';
 import { products } from '../data/mockData';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
@@ -21,6 +21,18 @@ function getCategoryLabel(category?: string) {
   return category === AUTO_PARTS_CATEGORY ? 'Autopartes' : category;
 }
 
+// Mock data for vehicle dropdowns
+const VEHICLE_DATA: Record<string, string[]> = {
+  'Toyota': ['Corolla', 'Camry', 'RAV4', 'Hilux', 'Yaris', 'Vios'],
+  'Honda': ['Civic', 'Accord', 'CR-V', 'Fit', 'Odyssey'],
+  'Ford': ['Focus', 'Escort', 'Ranger', 'Mustang'],
+  'Chevrolet': ['Cruze', 'Malibu', 'Spark', 'Tracker'],
+  'Nissan': ['Sentra', 'Altima', 'Versa', 'Rogue']
+};
+
+const BRANDS = Object.keys(VEHICLE_DATA);
+const YEARS = ['2024', '2023', '2022', '2021', '2020', '2019', '2018', '2017', '2016', '2015'];
+
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -29,6 +41,7 @@ export function SearchPage() {
   
   const [localSearchQuery, setLocalSearchQuery] = useState(query);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const searchContainerRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -43,6 +56,8 @@ export function SearchPage() {
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
+  const [saveToGarage, setSaveToGarage] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<{ brand: string; model: string; year: string; displayName: string } | null>(null);
   
   // Code search state
   const [searchCode, setSearchCode] = useState('');
@@ -80,10 +95,8 @@ export function SearchPage() {
     return { dominantCategory: dominant, scopedProducts: scoped };
   }, [matchedProducts]);
 
-  // Mock data for vehicle dropdowns
-  const brands = ['Toyota', 'Honda', 'Ford', 'Chevrolet', 'Nissan'];
-  const models = ['Corolla', 'Camry', 'RAV4', 'Hilux'];
-  const years = ['2024', '2023', '2022', '2021', '2020', '2019', '2018'];
+  // Get models based on selected brand
+  const models = selectedBrand ? VEHICLE_DATA[selectedBrand] : [];
 
   // Filter products based on all criteria
   const filteredProducts = useMemo(() => {
@@ -115,6 +128,37 @@ export function SearchPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || previewProducts.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev < previewProducts.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+    } else if (e.key === 'Enter' && focusedIndex >= 0) {
+      e.preventDefault();
+      handlePreviewSelect(previewProducts[focusedIndex].name);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  };
+
+  const HighlightMatch = ({ text, query }: { text: string; query: string }) => {
+    if (!query.trim()) return <span>{text}</span>;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+      <span>
+        {parts.map((part, i) => 
+          part.toLowerCase() === query.toLowerCase() 
+            ? <strong key={i} className="text-primary font-bold">{part}</strong> 
+            : part
+        )}
+      </span>
+    );
+  };
+
   const currentCategory = dominantCategory ?? AUTO_PARTS_CATEGORY;
   const currentCategoryLabel = getCategoryLabel(currentCategory);
   const showVehicleSearchFlow = !normalizedQuery || currentCategory === AUTO_PARTS_CATEGORY;
@@ -123,14 +167,63 @@ export function SearchPage() {
   const resultsSubtitle = normalizedQuery ? currentCategoryLabel : null;
 
   const handleVehicleSearch = () => {
-    // Handle vehicle search logic
-    console.log('Searching for:', { selectedBrand, selectedModel, selectedYear });
+    if (selectedBrand && selectedModel && selectedYear) {
+      const displayName = `${selectedBrand} ${selectedModel} ${selectedYear}`;
+      setSelectedVehicle({
+        brand: selectedBrand,
+        model: selectedModel,
+        year: selectedYear,
+        displayName
+      });
+      if (saveToGarage) {
+        console.log('Vehicle saved to garage:', { selectedBrand, selectedModel, selectedYear });
+      }
+      setShowSearchCard(false);
+      setSearchMode('vehicle');
+      console.log('Searching for vehicle:', { selectedBrand, selectedModel, selectedYear });
+    }
+  };
+
+  const handleChangeVehicle = () => {
+    setSelectedVehicle(null);
+    setSelectedBrand('');
+    setSelectedModel('');
+    setSelectedYear('');
+    setSearchCode('');
+    setShowSearchCard(true);
+    setSearchMode('vehicle');
   };
 
   const handleCodeSearch = () => {
-    // Handle code search logic
-    console.log('Searching for code:', searchCode);
+    if (searchCode.trim()) {
+      const displayName = `Código: ${searchCode}`;
+      setSelectedVehicle({
+        brand: 'Code',
+        model: searchCode,
+        year: '',
+        displayName
+      });
+      setShowSearchCard(false);
+      console.log('Searching for code:', searchCode);
+    }
   };
+
+  const handleClearSearch = (type: 'vehicle' | 'code') => {
+    if (type === 'vehicle') {
+      setSelectedBrand('');
+      setSelectedModel('');
+      setSelectedYear('');
+      setSaveToGarage(false);
+    } else {
+      setSearchCode('');
+    }
+  };
+
+  // Check if vehicle form is valid
+  const isVehicleFormValid = selectedBrand && selectedModel && selectedYear;
+
+  // Check if code form is valid
+  const isCodeFormValid = searchCode.trim().length > 0;
 
   const previewProducts = localSearchQuery.trim()
     ? products
@@ -158,6 +251,8 @@ export function SearchPage() {
 
   const handlePreviewSelect = (value: string) => {
     setLocalSearchQuery(value);
+    setShowSuggestions(false);
+    setFocusedIndex(-1);
     const params = new URLSearchParams(searchParams);
     params.set('q', value);
     setSearchParams(params);
@@ -185,17 +280,16 @@ export function SearchPage() {
                 onChange={(e) => {
                   setLocalSearchQuery(e.target.value);
                   setShowSuggestions(true);
+                  setFocusedIndex(-1);
                 }}
                 onFocus={() => setShowSuggestions(true)}
+                onKeyDown={handleKeyDown}
                 placeholder="Buscar..."
                 className="h-full flex-1 bg-transparent text-sm text-primary outline-none placeholder:text-muted-foreground"
               />
               <button
                 type="button"
-                onClick={() => {
-                  setLocalSearchQuery('');
-                  navigate('/no-results');
-                }}
+                onClick={() => setLocalSearchQuery('')}
                 className="flex h-6 w-6 items-center justify-center text-primary hover:opacity-70 transition-opacity"
                 aria-label="Limpiar búsqueda"
               >
@@ -205,12 +299,12 @@ export function SearchPage() {
 
             {showSuggestions && previewProducts.length > 0 ? (
               <div className="absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-xl border border-[#6b6b7b] bg-white shadow-sm">
-                {previewProducts.map((product) => (
+                {previewProducts.map((product, index) => (
                   <button
                     key={product.id}
                     type="button"
                     onClick={() => handlePreviewSelect(product.name)}
-                    className="flex h-12 w-full items-center gap-[10px] px-3 text-left transition-colors hover:bg-[#f5f5f7]"
+                    className={`flex h-12 w-full items-center gap-[10px] px-3 text-left transition-colors ${focusedIndex === index ? 'bg-[#f5f5f7]' : 'hover:bg-[#f5f5f7]'}`}
                   >
                     <ImageWithFallback
                       src={product.image}
@@ -218,7 +312,7 @@ export function SearchPage() {
                       className="h-[31px] w-[31px] rounded-[4px]"
                     />
                     <span className="truncate text-sm leading-[1.5] tracking-[0.0014px] text-[#6b6b7b]">
-                      {product.name}
+                      <HighlightMatch text={product.name} query={localSearchQuery} />
                     </span>
                   </button>
                 ))}
@@ -230,7 +324,8 @@ export function SearchPage() {
 
       {/* Mobile Layout */}
       <div className="bg-[#ffffff]">
-        {showVehicleSearchFlow ? (
+        {/* Show vehicle search section only if no vehicle is selected */}
+        {showVehicleSearchFlow && !selectedVehicle && (
           <div className="bg-input-background px-3 py-6">
             {/* Yellow Warning Banner */}
             {showBanner && (
@@ -289,17 +384,52 @@ export function SearchPage() {
               </button>
             </div>
           </div>
-        ) : null}
+        )}
+
+        {/* Show vehicle selection banner when a vehicle is selected */}
+        {selectedVehicle && !showSearchCard && (
+          <div className="bg-input-background px-3 py-6">
+            <div className="bg-[var(--backgrounds-secondary,#f0f0f2)] rounded-xl p-6 mb-6">
+              {/* Vehicle Selection Header */}
+              <div className="flex gap-1 items-center mb-6">
+                <div className="w-6 h-6 flex-shrink-0">
+                  <svg className="block size-full" fill="none" viewBox="0 0 17 15">
+                    <path d={svgPathsMobile.p69d4980} fill="var(--color-primary)" />
+                  </svg>
+                </div>
+                <p className="text-base font-normal text-primary leading-[1.5]">Buscando para:</p>
+                <p className="text-base font-normal text-primary leading-[1.5]">{selectedVehicle.displayName}</p>
+              </div>
+
+              {/* Change Vehicle Button */}
+              <button
+                type="button"
+                onClick={handleChangeVehicle}
+                className="w-full h-[52px] border border-primary rounded-xl px-4 flex items-center justify-center gap-1 hover:bg-muted transition-colors"
+              >
+                <span className="text-primary text-base leading-[1.5]">
+                  {selectedVehicle.brand === 'Code' ? 'Cambiar búsqueda' : 'Cambiar vehículo'}
+                </span>
+                <div className="w-6 h-6 flex-shrink-0">
+                  <svg className="block size-full" fill="none" viewBox="0 0 20 21.7345">
+                    <path d={svgPathsMobile.pbd22480} fill="var(--color-primary)" />
+                  </svg>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Search Card */}
         {showVehicleSearchFlow && showSearchCard ? (
         <div className="bg-white border-[0.5px] border-[#bfbed0] rounded-xl p-6 mx-3 my-6">
           {/* Tabs */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-6 gap-6">
             <button
+              type="button"
               onClick={() => setSearchMode('vehicle')}
-              className={`flex items-center gap-1 pb-2 relative ${
-                searchMode === 'vehicle' ? 'text-primary' : 'text-muted-foreground'
+              className={`flex items-center gap-1 pb-2 relative cursor-pointer transition-colors ${
+                searchMode === 'vehicle' ? 'text-primary' : 'text-muted-foreground hover:text-primary'
               }`}
             >
               <div className="w-4 h-4 flex-shrink-0">
@@ -310,7 +440,7 @@ export function SearchPage() {
                   />
                 </svg>
               </div>
-              <span className="text-base leading-[1.5]">
+              <span className="text-base leading-[1.5] font-medium">
                 Buscar por vehículo
               </span>
               {searchMode === 'vehicle' && (
@@ -319,9 +449,10 @@ export function SearchPage() {
             </button>
 
             <button
+              type="button"
               onClick={() => setSearchMode('code')}
-              className={`flex items-center gap-1 pb-2 relative ${
-                searchMode === 'code' ? 'text-primary' : 'text-muted-foreground'
+              className={`flex items-center gap-1 pb-2 relative cursor-pointer transition-colors ${
+                searchMode === 'code' ? 'text-primary' : 'text-muted-foreground hover:text-primary'
               }`}
             >
               <div className="w-4 h-4 flex-shrink-0">
@@ -332,7 +463,7 @@ export function SearchPage() {
                   />
                 </svg>
               </div>
-              <span className="text-base leading-[1.5]">
+              <span className="text-base leading-[1.5] font-medium">
                 Buscar por código
               </span>
               {searchMode === 'code' && (
@@ -349,28 +480,33 @@ export function SearchPage() {
             <div className="flex flex-col gap-1">
               {/* Brand Dropdown */}
               <div className="flex flex-col gap-1">
-                <label className="text-sm text-primary leading-[1.5]">Marca del vehículo</label>
-                <div className="relative h-[52px]">
-                  <div className="absolute inset-0 border border-primary rounded-xl" />
-                  <div className="flex items-center gap-3 px-3 h-full">
+                <label className={`text-sm leading-[1.5] ${selectedBrand ? 'text-primary' : 'text-muted-foreground'}`}>Marca del vehículo</label>
+                <div className={`relative h-[52px] ${!selectedBrand ? 'bg-card' : ''}`}>
+                  <div className={`absolute inset-0 border rounded-xl pointer-events-none ${selectedBrand ? 'border-primary' : 'border-muted-foreground'}`} />
+                  <div className="relative z-10 flex items-center gap-3 px-3 h-full">
                     <div className="w-4 h-4 flex-shrink-0">
                       <svg className="block size-full" fill="none" viewBox="0 0 17.192 17.1923">
-                        <path d={svgPathsSearch.p34e8e200} fill="var(--color-primary)" />
+                        <path d={svgPathsSearch.p34e8e200} fill={selectedBrand ? 'var(--color-primary)' : '#6B6B7B'} />
                       </svg>
                     </div>
                     <select
                       value={selectedBrand}
-                      onChange={(e) => setSelectedBrand(e.target.value)}
-                      className="flex-1 bg-transparent text-sm text-muted-foreground appearance-none cursor-pointer outline-none"
+                      onChange={(e) => {
+                        setSelectedBrand(e.target.value);
+                        setSelectedModel('');
+                        setSelectedYear('');
+                      }}
+                      className="flex-1 bg-transparent text-sm appearance-none cursor-pointer outline-none"
+                      style={{ color: selectedBrand ? 'var(--color-primary)' : '#6B6B7B' }}
                     >
                       <option value="">Seleccionar o buscar marca</option>
-                      {brands.map((brand) => (
+                      {BRANDS.map((brand) => (
                         <option key={brand} value={brand}>{brand}</option>
                       ))}
                     </select>
                     <div className="w-4 h-4 flex-shrink-0">
                       <svg className="block size-full" fill="none" viewBox="0 0 11.3075 6.7075">
-                        <path d={svgPathsSearch.p34b30800} fill="var(--color-primary)" />
+                        <path d={svgPathsSearch.p34b30800} fill={selectedBrand ? 'var(--color-primary)' : '#6B6B7B'} />
                       </svg>
                     </div>
                   </div>
@@ -379,19 +515,23 @@ export function SearchPage() {
 
               {/* Model Dropdown */}
               <div className="flex flex-col gap-1">
-                <label className="text-sm text-muted-foreground leading-[1.5]">Modelo</label>
-                <div className="relative h-[52px]">
-                  <div className="absolute inset-0 bg-card border border-muted-foreground rounded-xl" />
-                  <div className="flex items-center gap-3 px-3 h-full">
-                    <div className="w-6 h-6 flex-shrink-0">
+                <label className={`text-sm leading-[1.5] ${selectedModel ? 'text-primary' : 'text-muted-foreground'}`}>Modelo</label>
+                <div className={`relative h-[52px] ${!selectedModel ? 'bg-card' : ''}`}>
+                  <div className={`absolute inset-0 border rounded-xl pointer-events-none ${selectedModel ? 'border-primary' : 'border-muted-foreground'}`} />
+                  <div className="relative z-10 flex items-center gap-3 px-3 h-full">
+                    <div className="w-4 h-4 flex-shrink-0">
                       <svg className="block size-full" fill="none" viewBox="0 0 17.192 17.1923">
-                        <path d={svgPathsSearch.p34e8e200} fill="var(--color-primary)" />
+                        <path d={svgPathsSearch.p34e8e200} fill={selectedModel ? 'var(--color-primary)' : '#6B6B7B'} />
                       </svg>
                     </div>
                     <select
                       value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      className="flex-1 bg-transparent text-sm text-muted-foreground appearance-none cursor-pointer outline-none"
+                      onChange={(e) => {
+                        setSelectedModel(e.target.value);
+                        setSelectedYear('');
+                      }}
+                      className="flex-1 bg-transparent text-sm appearance-none cursor-pointer outline-none"
+                      style={{ color: selectedModel ? 'var(--color-primary)' : '#6B6B7B' }}
                       disabled={!selectedBrand}
                     >
                       <option value="">Seleccionar modelo</option>
@@ -399,9 +539,9 @@ export function SearchPage() {
                         <option key={model} value={model}>{model}</option>
                       ))}
                     </select>
-                    <div className="w-6 h-6 flex-shrink-0">
+                    <div className="w-4 h-4 flex-shrink-0">
                       <svg className="block size-full" fill="none" viewBox="0 0 11.3075 6.7075">
-                        <path d={svgPathsSearch.p34b30800} fill="var(--color-primary)" />
+                        <path d={svgPathsSearch.p34b30800} fill={selectedModel ? 'var(--color-primary)' : '#6B6B7B'} />
                       </svg>
                     </div>
                   </div>
@@ -410,45 +550,82 @@ export function SearchPage() {
 
               {/* Year Dropdown */}
               <div className="flex flex-col gap-1">
-                <label className="text-sm text-muted-foreground leading-[1.5]">Año</label>
-                <div className="relative h-[52px]">
-                  <div className="absolute inset-0 bg-card border border-muted-foreground rounded-xl" />
-                  <div className="flex items-center gap-3 px-3 h-full">
-                    <select
+                <label className={`text-sm leading-[1.5] ${selectedYear ? 'text-primary' : 'text-muted-foreground'}`}>Año</label>
+                <div className={`relative h-[52px] ${!selectedYear ? 'bg-card' : ''}`}>
+                  <div className={`absolute inset-0 border rounded-xl pointer-events-none ${selectedYear ? 'border-primary' : 'border-muted-foreground'}`} />
+                  <div className="relative z-10 flex items-center px-4 h-full">
+                    <input
+                      type="text"
+                      inputMode="numeric"
                       value={selectedYear}
-                      onChange={(e) => setSelectedYear(e.target.value)}
-                      className="flex-1 bg-transparent text-sm text-muted-foreground appearance-none cursor-pointer outline-none"
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setSelectedYear(val);
+                      }}
+                      placeholder="Ej: 2024"
                       disabled={!selectedModel}
-                    >
-                      <option value="">Seleccionar año</option>
-                      {years.map((year) => (
-                        <option key={year} value={year}>{year}</option>
-                      ))}
-                    </select>
-                    <div className="w-6 h-6 flex-shrink-0">
-                      <svg className="block size-full" fill="none" viewBox="0 0 11.3075 6.70775">
-                        <path d={svgPathsSearch.p1a7900} fill="var(--color-primary)" />
-                      </svg>
-                    </div>
+                      className="flex-1 bg-transparent text-sm outline-none"
+                      style={{ color: selectedYear ? 'var(--color-primary)' : '#6B6B7B' }}
+                    />
                   </div>
                 </div>
+              </div>
+
+              {/* Save to Garage Checkbox */}
+              <div className="mt-2 flex items-center justify-between">
+                <label className="flex cursor-pointer items-center gap-2 group">
+                  <div className="relative h-5 w-5 flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={saveToGarage}
+                      onChange={(e) => setSaveToGarage(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+                      saveToGarage ? 'border-primary bg-primary' : 'border-muted-foreground bg-white group-hover:border-primary'
+                    }`}>
+                      {saveToGarage && (
+                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 12 10">
+                          <path d="M1 5L4.5 8.5L11 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-sm leading-[1.5] text-primary">Guardar en mi garage</span>
+                </label>
+                <Link 
+                  to="/profile/garage" 
+                  className="text-sm leading-[1.5] text-primary underline hover:opacity-70 transition-opacity"
+                >
+                  Ver mi garage
+                </Link>
               </div>
 
               {/* Buttons */}
               <div className="flex flex-col gap-6 mt-6">
                 <button
+                  type="button"
                   onClick={handleVehicleSearch}
-                  className="h-[54px] bg-muted text-muted-foreground rounded-xl px-4 flex items-center justify-center gap-1 hover:bg-card transition-colors"
+                  disabled={!isVehicleFormValid}
+                  className={`h-[54px] rounded-xl px-4 flex items-center justify-center gap-1 transition-colors ${
+                    isVehicleFormValid
+                      ? 'bg-primary text-white hover:opacity-90 cursor-pointer'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+                  }`}
                 >
                   <span className="text-base leading-[1.5]">Buscar repuestos compatibles</span>
                   <div className="w-6 h-6 flex-shrink-0">
                     <svg className="block size-full" fill="none" viewBox="0 0 19 12">
-                      <path d={svgPathsSearch.p1478b400} fill="var(--color-muted-foreground)" />
+                      <path d={svgPathsSearch.p1478b400} fill="currentColor" />
                     </svg>
                   </div>
                 </button>
 
-                <button className="h-[54px] bg-card text-muted-foreground rounded-xl px-4 flex items-center justify-center gap-1 hover:bg-muted transition-colors">
+                <button
+                  type="button"
+                  onClick={() => handleClearSearch('vehicle')}
+                  className="h-[54px] bg-card text-muted-foreground rounded-xl px-4 flex items-center justify-center gap-1 hover:bg-muted transition-colors"
+                >
                   <span className="text-base leading-[1.5]">Limpiar búsqueda</span>
                   <div className="w-6 h-6 flex-shrink-0">
                     <svg className="block size-full" fill="none" viewBox="0 0 17.404 15.4038">
@@ -462,26 +639,40 @@ export function SearchPage() {
             <div className="flex flex-col gap-1">
               {/* Code Input */}
               <div className="flex flex-col gap-1">
-                <label className="text-sm text-muted-foreground leading-[1.5]">Buscar por código</label>
+                <label className={`text-sm leading-[1.5] ${searchCode ? 'text-primary' : 'text-muted-foreground'}`}>Buscar por código</label>
                 <input
                   type="text"
                   value={searchCode}
                   onChange={(e) => setSearchCode(e.target.value)}
                   placeholder="Ej: Ingrese el código AXXS 2005 1234 o similar"
-                  className="h-[52px] bg-card border border-muted-foreground rounded-xl px-3 text-sm text-primary placeholder:text-muted-foreground"
+                  className={`h-[52px] border rounded-xl px-3 text-sm placeholder:text-muted-foreground ${
+                    searchCode
+                      ? 'border-primary bg-white text-primary'
+                      : 'border-muted-foreground bg-card text-muted-foreground'
+                  }`}
                 />
               </div>
 
               {/* Buttons */}
               <div className="flex flex-col gap-6 mt-6">
                 <button
+                  type="button"
                   onClick={handleCodeSearch}
-                  className="h-[54px] bg-muted text-muted-foreground rounded-xl px-4 flex items-center justify-center gap-1 hover:bg-card transition-colors"
+                  disabled={!isCodeFormValid}
+                  className={`h-[54px] rounded-xl px-4 flex items-center justify-center gap-1 transition-colors ${
+                    isCodeFormValid
+                      ? 'bg-primary text-white hover:opacity-90 cursor-pointer'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+                  }`}
                 >
                   <span className="text-base leading-[1.5]">Buscar</span>
                 </button>
 
-                <button className="h-[54px] bg-card text-muted-foreground rounded-xl px-4 flex items-center justify-center gap-1 hover:bg-muted transition-colors">
+                <button
+                  type="button"
+                  onClick={() => handleClearSearch('code')}
+                  className="h-[54px] bg-card text-muted-foreground rounded-xl px-4 flex items-center justify-center gap-1 hover:bg-muted transition-colors"
+                >
                   <span className="text-base leading-[1.5]">Limpiar búsqueda</span>
                   <div className="w-6 h-6 flex-shrink-0">
                     <svg className="block size-full" fill="none" viewBox="0 0 17.404 15.4038">

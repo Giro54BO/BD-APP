@@ -13,23 +13,6 @@ export function ProfileSavedPage() {
   return (
     <ProfilePageFrame title="Mi perfil">
       <div className="mx-auto flex w-full max-w-[864px] flex-col gap-6">
-        <aside className="rounded-2xl border border-[#bfbed0] bg-[#fafafa] p-4">
-          <Link
-            to="/profile/personal"
-            className="flex items-center gap-3 rounded-xl bg-white px-4 py-4 text-primary"
-          >
-            <CheckCircle2 className="h-5 w-5" />
-            <span className="text-[18px] leading-[1.5]">Mi perfil</span>
-          </Link>
-          <Link
-            to="/profile/edit"
-            className="mt-2 flex items-center gap-3 rounded-xl px-4 py-4 text-[#6b6b7b] transition-colors hover:bg-white hover:text-primary"
-          >
-            <PencilLine className="h-5 w-5" />
-            <span className="text-[18px] leading-[1.5]">Editar perfil</span>
-          </Link>
-        </aside>
-
         <section className="rounded-2xl border border-[#bfbed0] bg-white p-6 md:p-8">
           <div className="mb-6 rounded-2xl bg-[#e8f5e9] p-4 text-[#2e7d32]">
             <div className="flex items-center gap-3">
