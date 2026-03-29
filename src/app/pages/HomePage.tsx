@@ -236,7 +236,7 @@ export function HomePage() {
             necesitas sin salir de casa.
           </p>
           <Link
-            to="/search"
+            to="/categorias"
             className="mt-1 inline-flex h-12 w-full items-center justify-center gap-1 rounded-[12px] bg-white px-4 text-[16px] font-normal leading-[1.5] text-primary transition-colors hover:bg-white/90"
           >
             Explorar catálogo
