@@ -109,6 +109,7 @@ export function ProductDetailPage() {
         price: product.price,
         image: product.image,
         code: product.code,
+        category: product.category,
       },
       quantity
     );

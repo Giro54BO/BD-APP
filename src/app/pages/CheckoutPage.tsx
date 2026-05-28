@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,7 +11,7 @@ import {
   Store,
   Truck,
 } from 'lucide-react';
-import { useCart } from '../context/CartContext';
+import { getCartBusinessName, useCart } from '../context/CartContext';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
 type CheckoutStep = 1 | 2 | 3 | 4;
@@ -27,7 +27,9 @@ const stepLabels = [
 
 export function CheckoutPage() {
   const navigate = useNavigate();
-  const { items, cartTotal } = useCart();
+  const [searchParams] = useSearchParams();
+  const { items, cartGroups, removeCategoryFromCart } = useCart();
+  const requestedCategory = searchParams.get('category');
   const [currentStep, setCurrentStep] = useState<CheckoutStep>(1);
   const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('home');
@@ -47,29 +49,45 @@ export function CheckoutPage() {
     cardCVV: '123',
   });
 
-  useEffect(() => {
-    if (items.length === 0) {
-      navigate('/cart');
+  const selectedCategory = useMemo(() => {
+    if (requestedCategory) {
+      return requestedCategory;
     }
-  }, [items.length, navigate]);
 
-  const itemCount = useMemo(
-    () => items.reduce((count, item) => count + item.quantity, 0),
-    [items]
-  );
+    if (cartGroups.length === 1) {
+      return cartGroups[0].category;
+    }
+
+    return null;
+  }, [cartGroups, requestedCategory]);
+
+  const selectedGroup = useMemo(() => {
+    if (!selectedCategory) {
+      return undefined;
+    }
+
+    return cartGroups.find((group) => group.category === selectedCategory);
+  }, [cartGroups, selectedCategory]);
+
+  const displayItems = selectedGroup?.items ?? [];
+  const itemCount = selectedGroup?.itemCount ?? 0;
+  const subtotal = selectedGroup?.subtotal ?? 0;
+  const businessName = selectedCategory ? getCartBusinessName(selectedCategory) : '';
 
   const shippingCost = deliveryMode === 'home' ? 20 : 0;
-  const total = cartTotal + shippingCost;
+  const total = subtotal + shippingCost;
 
-  const displayItems = useMemo(() => {
-    if (items.length > 0) {
-      return items;
+  useEffect(() => {
+    if (isOrderConfirmed) {
+      return;
     }
 
-    return [];
-  }, [items]);
+    if (items.length === 0 || !selectedCategory || !selectedGroup) {
+      navigate('/cart', { replace: true });
+    }
+  }, [isOrderConfirmed, items.length, navigate, selectedCategory, selectedGroup]);
 
-  if (items.length === 0) {
+  if (!isOrderConfirmed && (items.length === 0 || !selectedCategory || !selectedGroup)) {
     return null;
   }
 
@@ -95,7 +113,7 @@ export function CheckoutPage() {
 
   const goNext = () => {
     if (currentStep === 4) {
-      setIsOrderConfirmed(true);
+      handleConfirmOrder();
       return;
     }
 
@@ -103,7 +121,15 @@ export function CheckoutPage() {
   };
 
   const handleConfirmOrder = () => {
+    if (isOrderConfirmed) {
+      return;
+    }
+
     setIsOrderConfirmed(true);
+
+    if (selectedCategory) {
+      removeCategoryFromCart(selectedCategory);
+    }
   };
 
   const renderStepContent = () => {
@@ -496,11 +522,17 @@ export function CheckoutPage() {
         </div>
 
         <div className="space-y-6">
+          {businessName ? (
+            <ContextMessage>
+              Estás pagando los productos de {businessName}. Los demás negocios permanecen en tu carrito.
+            </ContextMessage>
+          ) : null}
+
           {renderStepContent()}
 
           <SummaryCard
             itemCount={itemCount}
-            subtotal={cartTotal}
+            subtotal={subtotal}
             shippingCost={shippingCost}
             total={total}
           />
